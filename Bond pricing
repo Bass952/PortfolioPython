@@ -1,0 +1,101 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import math as m
+import scipy.optimize as optimize
+from scipy.stats import norm
+import datetime
+
+# Definition of basic parameters
+Maturity = datetime.datetime(2035, 1, 26)  # Bond maturity date
+Coupon = 3.85  # Annual coupon rate in percentage
+Freq = 2  # Frequency of coupon payments (2 = semiannual)
+
+# Calculation of residual maturity in years
+res_mat = (Maturity - datetime.datetime.now()).days / 365
+res_mat += 1 / Freq  # Adds the last excluded coupon to the range
+
+# Calculation of the coupon schedule (cpn_sched)
+cpn_sched = []
+Res_mat = res_mat  # Copy of residual maturity
+for i in range(round(Res_mat) * Freq):
+    if Res_mat > 0:
+        Res_mat -= 1 / Freq
+        cpn_sched.append(Res_mat)
+
+# Ensure the coupon schedule is generated correctly
+if not cpn_sched:
+    raise ValueError("Coupon schedule is empty. Check the residual maturity and frequency values.")
+
+# Function to calculate the bond price
+# Depends on Coupon, Yield, Coupon Frequency, and Coupon Schedule
+def BondPrice(Coupon, yld, Freq, cpn_sched):
+    # Calculation of accrued interest
+    AI = Coupon * (1 / Freq - cpn_sched[-1])
+    
+    # "Clean" price of the bond
+    Clean = (
+        np.sum((Coupon / Freq) / ((1 + yld / 100) ** np.array(cpn_sched))) +
+        100 / ((1 + yld / 100) ** cpn_sched[0]) -
+        AI
+    )
+    return Clean
+
+# Example usage of the BondPrice function
+# Here, the price is calculated for a given yield (e.g., 3.40%)
+# The function returns the "clean" price of the bond
+price = BondPrice(Coupon, 3.40, Freq, cpn_sched)
+print("Bond Price:", price)
+
+# Calculation of the bond's market price
+P = 103.95  # Market price (This represents the observed market price of the bond. It is used for comparison with calculated values, such as when determining the Yield to Maturity.)
+
+# Yield to Maturity (YTM) calculation using optimization
+# Uses Newton's method to find the yield that matches the calculated price with the market price
+yld = optimize.newton(lambda yld: BondPrice(Coupon, yld, Freq, cpn_sched) - P, 0.05)
+
+# Creating an array of bond prices for different yields
+P_array = np.zeros(200)
+yld_array = np.arange(3, 5, 0.01)  # Yield from 3% to 5% with a step of 0.01%
+
+for i in range(200):
+    P_array[i] = BondPrice(Coupon, yld_array[i], Freq, cpn_sched)
+
+# Plotting the Price-Yield relationship
+plt.plot(yld_array, P_array, color='blue')
+plt.title('Price-Yield Relationship')
+plt.xlabel('YTM')
+plt.ylabel('Price')
+plt.grid()
+plt.show()
+
+# Convexity analysis: price change with respect to yield
+y = (P_array[:-1] - P_array[1:]) * 100
+x = yld_array[:-1]
+
+plt.bar(x, y, color='blue')
+plt.title('Convexity Effect on Price Change')
+plt.xlabel('YTM')
+plt.ylabel('Cents of Adjacent Price Change')
+plt.ylim(y.min() - 0.3, y.max() + 0.3)
+plt.xlim(x.min(), x.max())
+plt.grid()
+plt.show()
+
+# Calculation of Duration and Convexity
+yld_tdy = 3.40  # Current yield
+P_up = BondPrice(Coupon, yld_tdy - 0.01, Freq, cpn_sched)
+P_down = BondPrice(Coupon, yld_tdy + 0.01, Freq, cpn_sched)
+P0 = BondPrice(Coupon, yld_tdy, Freq, cpn_sched)
+
+# Duration and Convexity
+Duration = (P_up - P_down) / (2 * P0 * 0.0001)
+Convexity = (P_up - 2 * P0 + P_down) / (P0 * (0.0001 ** 2))
+
+# Price Delta considering Duration and Convexity
+DeltaP = -P0 * (Duration * 0.0001 + 0.5 * Convexity * (0.0001 ** 2))
+
+print("Duration:", Duration)
+print("Convexity:", Convexity)
+print("DeltaP:", DeltaP)

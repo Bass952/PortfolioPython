@@ -9,51 +9,99 @@ Original file is located at
 
 #Library Management Solution
 
+
+import csv
+
 #Set up a dictionary to store the books and their respective number of copies
 library = {}
+original_titles = {}  # Keeps track of original title formatting
+
+#Create a function to load library data from CSV
+def load_library():
+    try:
+        with open('library_data.csv', mode='r', newline='') as file:
+            reader = csv.reader(file)
+            for row in reader:
+                title, copies = row
+                library[title.lower()] = int(copies)
+                original_titles[title.lower()] = title
+        print("Library data loaded successfully.")
+    except FileNotFoundError:
+        print("No existing library data found. Starting fresh.")
+
+#Create a function to save library data to CSV
+def save_library():
+    with open('library_data.csv', mode='w', newline='') as file:
+        writer = csv.writer(file)
+        for title, copies in library.items():
+            writer.writerow([original_titles[title], copies])
+    print("Library data saved successfully.")
 
 #Create a function to add a book to the library
 def add_book(title, copies):
-    if title in library:
-        library[title] += copies
-        print(f"Updated: {copies} copies added to '{title}'.")
+    if copies < 0:
+        print("Error: Cannot add a negative number of copies.")
+        return
+    key = title.lower()
+    if key in library:
+        library[key] += copies
+        print(f"Updated: {copies} copies added to '{original_titles[key]}'.")
     else:
-        library[title] = copies
+        library[key] = copies
+        original_titles[key] = title  # Store original title format
         print(f"Added: '{title}' with {copies} copies.")
 
-#Create a function to remove a book from the library
-def remove_book(title):
-    if title in library:
-        del library[title]
-        print(f"Removed: '{title}'.")
+#Create a function to remove a book or reduce its copies from the library
+def remove_book(title, copies=None):
+    key = title.lower()
+    if key in library:
+        if copies is None:
+            del library[key]
+            del original_titles[key]
+            print(f"Removed: '{title}'.")
+        elif copies > 0 and library[key] >= copies:
+            library[key] -= copies
+            if library[key] == 0:
+                del library[key]
+                del original_titles[key]
+                print(f"Removed all copies of '{title}'.")
+            else:
+                print(f"Removed: {copies} copies of '{title}'.")
+        else:
+            print(f"Error: Not enough copies of '{title}' to remove.")
     else:
         print(f"Error: The book '{title}' does not exist.")
 
 #Create a function to check if a book is available in the library
 def check_availability(title):
-    return library.get(title, 0) > 0
+    return library.get(title.lower(), 0) > 0
 
 #Create a function to borrow a book from the library
 def borrow_book(title):
-    if title in library and library[title] > 0:
-        library[title] -= 1
-        print(f"Borrowed: one copy of '{title}' has been borrowed.")
+    key = title.lower()
+    if key in library and library[key] > 0:
+        library[key] -= 1
+        print(f"Borrowed: one copy of '{original_titles[key]}' has been borrowed.")
     else:
         print(f"Error: '{title}' is not available for borrowing.")
 
 #Create a function to restore (add) copies of a book in the library
 def restore_book(title, copies):
-    if title in library:
-        library[title] += copies
-        print(f"Restored: {copies} copies added to '{title}'.")
+    if copies < 0:
+        print("Error: Cannot restore a negative number of copies.")
+        return
+    key = title.lower()
+    if key in library:
+        library[key] += copies
+        print(f"Restored: {copies} copies added to '{original_titles[key]}'.")
     else:
         print(f"Error: The book '{title}' does not exist.")
 
 #Create a function to calculate and display library statistics
 def library_statistics():
-    total_books = len(library)
-    total_copies = sum(library.values())
-    average_copies = total_copies / total_books if total_books > 0 else 0
+    total_books = len(library)  # Total number of book titles
+    total_copies = sum(library.values())  # Total number of copies across all books
+    average_copies = total_copies / total_books if total_books > 0 else 0  # Average number of copies per book
     return {
         "total_books": total_books,
         "total_copies": total_copies,
@@ -64,59 +112,88 @@ def library_statistics():
 def display_books():
     if library:
         print("Book list:")
-        for title, copies in library.items():
-            print(f"- {title}: {copies} copies")
+        for key, copies in library.items():
+            print(f"- {original_titles[key]}: {copies} copies")
     else:
         print("The library is empty.")
 
+#Create a function to download the library data as a CSV file
+def download_csv():
+    save_library()
+    print("Library data is ready for download as 'library_database.csv'.")
+
 #Create a loop for user interaction
 def main():
-  while True:
-    print("\nOptions:")
-    print("1. Add a book")
-    print("2. Remove a book")
-    print("3. Check book availability")
-    print("4. Borrow a book")
-    print("5. Restore a book")
-    print("6. Library statistics")
-    print("7. Display books")
-    print("8. Exit")
+    while True:
+        print("\nOptions:")
+        print("1. Add a book")
+        print("2. Remove a book")
+        print("3. Check book availability")
+        print("4. Borrow a book")
+        print("5. Restore a book")
+        print("6. Library statistics")
+        print("7. Display books")
+        print("8. Download library database")
+        print("9. Exit")
 
-#Ask the user an option
-    choice = input("Select an option (1-8): ")
+        #Ask the user an option
+        choice = input("Select an option (1-9): ")
 
-#With if statements handle each option based on user input
-    if choice == "1":
-        title = input("Enter the book title: ")
-        copies = int(input("Enter the number of copies: "))
-        add_book(title, copies)
-    elif choice == "2":
-        title = input("Enter the title of the book to remove: ")
-        remove_book(title)
-    elif choice == "3":
-        title = input("Enter the title of the book to check: ")
-        available = check_availability(title)
-        print(f"Available: {available}")
-    elif choice == "4":
-        title = input("Enter the title of the book to borrow: ")
-        borrow_book(title)
-    elif choice == "5":
-        title = input("Enter the title of the book to restore: ")
-        copies = int(input("Enter the number of copies to add: "))
-        restore_book(title, copies)
-    elif choice == "6":
-        stats = library_statistics()
-        print("Library statistics:")
-        print(f"- Total books: {stats['total_books']}")
-        print(f"- Total copies: {stats['total_copies']}")
-        print(f"- Average copies: {stats['average_copies']:.2f}")
-    elif choice == "7":
-        display_books()
-    elif choice == "8":
-        print("Exiting the program.")
-        break
-    else:
-        print("Invalid option. Please try again.")
+        #With if statements handle each option based on user input
+        if choice == "1":
+            title = input("Enter the book title: ")
+            try:
+                copies = int(input("Enter the number of copies: "))
+                add_book(title, copies)
+            except ValueError:
+                print("Error: Please enter a valid number of copies.")
+        elif choice == "2":
+            title = input("Enter the title of the book to remove: ")
+            try:
+                copies = input("Enter the number of copies to remove (leave blank to remove all): ")
+                if copies == "":
+                    remove_book(title)
+                else:
+                    remove_book(title, int(copies))
+            except ValueError:
+                print("Error: Please enter a valid number of copies.")
+        elif choice == "3":
+            title = input("Enter the title of the book to check: ")
+            available = check_availability(title)
+            print(f"Available: {available}")
+        elif choice == "4":
+            title = input("Enter the title of the book to borrow: ")
+            borrow_book(title)
+        elif choice == "5":
+            title = input("Enter the title of the book to restore: ")
+            try:
+                copies = int(input("Enter the number of copies to add: "))
+                restore_book(title, copies)
+            except ValueError:
+                print("Error: Please enter a valid number of copies.")
+        elif choice == "6":
+            stats = library_statistics()
+            print("Library statistics:")
+            print(f"- Total books: {stats['total_books']}")
+            print(f"- Total copies: {stats['total_copies']}")
+            print(f"- Average copies: {stats['average_copies']: }")
+        elif choice == "7":
+            display_books()
+        elif choice == "8":
+            download_csv()
+        elif choice == "9":
+            save_library()
+            print("Exiting the program.")
+            break
+        else:
+            print("Invalid option. Please try again.")
 
 if __name__ == "__main__":
+    load_library()
     main()
+
+
+
+#Ciao gloria, come stai? Ho corretto, ho aggiunto anche l'opzione di scegliere quanti libri levare, inoltre ho creato funzioni per poter scaricare il csv, ma poi non funziona mi sa ahahaha altri tips?
+# https://github.com/Bass952/PortfolioPython
+#fammi sapere e poi carico la versione corretta o questa, sperando sia ok, su github
